@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Daily Planner</title>
+<!-- Daily Planner V6: continuous timeline across midnight -->
 <style>
 :root{
   --bg:#f5f6fa; --card:#fff; --text:#172033; --muted:#737b8c;
@@ -112,7 +113,7 @@ input:focus{border-color:#7b8494;box-shadow:0 0 0 4px #f1f2f5}
    6. Keyboard shortcut
    ========================================================= */
 
-const state = {
+const APP_VERSION = "V6"; // Mobile time flow update — keeps the existing overall layout.\nconst STORAGE_KEY = "dailyPlannerV6";\n\nconst state = {
   screen: "home",
   startDay: null,
   taskCount: 0,
@@ -127,11 +128,11 @@ const progress = document.getElementById("progress");
 
 /* ---------- 1. LƯU / TẢI ---------- */
 function save(){
-  localStorage.setItem("dailyPlannerV4", JSON.stringify(state));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 function load(){
   try{
-    const data = JSON.parse(localStorage.getItem("dailyPlannerV4"));
+    const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
     if(data && typeof data === "object") Object.assign(state,data);
   }catch(e){}
 }
@@ -141,41 +142,49 @@ function pad(n){ return String(n).padStart(2,"0"); }
 function fmt(t){ return `${pad(t.h)}:${pad(t.m)}`; }
 function toMin(t){ return t.h*60+t.m; }
 
-function parseHM(h,m){
-  if(h === "" || m === "") return null;
-  const hour = Number(h), minute = Number(m);
-  if(!Number.isInteger(hour) || !Number.isInteger(minute)) return null;
-  if(hour < 0 || hour > 24 || minute < 0 || minute > 59) return null;
-  if(hour === 24 && minute !== 0) return null;
-  return {h:hour,m:minute};
+function parseHM(h, m) {
+  h = Number(h);
+  m = Number(m);
+  if (!Number.isInteger(h) || !Number.isInteger(m)) return null;
+  if (h < 0 || h > 24 || m < 0 || m > 59) return null;
+  if (h === 24 && m !== 0) return null;
+  return { h, m };
 }
 
-function addMinutes(t,mins){
-  const total = ((toMin(t)+mins)%1440+1440)%1440;
-  return {h:Math.floor(total/60),m:total%60};
+function formatTime(t) {
+  return `${String(t.h).padStart(2, "0")}:${String(t.m).padStart(2, "0")}`;
 }
 
-/* Ngày planner = từ startDay tới sleepTime.
-   Nếu sleepTime nhỏ hơn startDay thì hiểu là qua 00:00. */
-function dayDuration(start,sleep){
-  let d = toMin(sleep)-toMin(start);
-  if(d < 0) d += 1440;
-  return d;
+// Convert a clock time to its position in the planner's continuous timeline.
+// A time earlier than the planner start belongs to the following calendar day.
+function timelineMin(t, baseStart) {
+  let x = toMin(t);
+  const base = toMin(baseStart);
+  if (x < base) x += 1440;
+  return x;
 }
 
-function taskDuration(start,end){
-  let d = toMin(end)-toMin(start);
-  if(d < 0) d += 1440;
-  return d;
+function dayDuration(start, sleep) {
+  const s = toMin(start);
+  let e = toMin(sleep);
+  if (e < s) e += 1440;
+  return e - s;
 }
 
-function timeFields(prefix,value){
-  const h = value ? value.h : "";
-  const m = value ? pad(value.m) : "";
-  return `
-    <div class="time-row">
-      <div class="time-box">
-        <label for="${prefix}Hour">Giờ</label>
+function taskDuration(start, end) {
+  let s = toMin(start);
+  let e = toMin(end);
+  if (e < s) e += 1440;
+  return e - s;
+}
+
+function addMinutes(t, mins) {
+  let total = (toMin(t) + mins) % 1440;
+  if (total < 0) total += 1440;
+  return { h: Math.floor(total / 60), m: total % 60 };
+}
+
+efix}Hour">Giờ</label>
         <input class="time-input" id="${prefix}Hour" type="number"
                min="0" max="24" inputmode="numeric" placeholder="07" value="${h}">
       </div>
