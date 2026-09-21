@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<title>Daily Planner</title>
+<!-- Daily Planner V6: continuous timeline across midnight -->
+<style>
+:root{
+  --bg:#f5f6fa; --card:#fff; --text:#172033; --muted:#737b8c;
+  --line:#e5e7eb; --primary:#111827; --soft:#eef2ff;
+  --danger:#b42318; --danger-bg:#fff1f0;
+  --ok:#166534; --ok-bg:#effdf4;
+  --warn:#92400e; --warn-bg:#fffbeb;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif}
+body{min-height:100vh}
+button,input{font:inherit}
+button{border:0;cursor:pointer}
+.app{width:100%;max-width:620px;margin:0 auto;padding:env(safe-area-inset-top) 16px calc(28px + env(safe-area-inset-bottom))}
+.topbar{padding:18px 2px 10px;display:flex;justify-content:space-between;align-items:center}
+.brand{font-size:23px;font-weight:800;letter-spacing:-.03em}
+.version{font-size:11px;color:var(--muted);background:#fff;border:1px solid var(--line);padding:5px 8px;border-radius:99px}
+.hero{padding:8px 2px 16px}
+.hero h1{font-size:32px;line-height:1.08;margin:0 0 8px;letter-spacing:-.04em}
+.hero p{margin:0;color:var(--muted);line-height:1.45}
+.progress{height:6px;background:#e5e7eb;border-radius:99px;overflow:hidden;margin:14px 0 18px}
+.progress>div{height:100%;background:var(--primary);transition:.25s}
+.card{background:var(--card);border:1px solid var(--line);border-radius:22px;padding:20px;box-shadow:0 7px 28px rgba(17,24,39,.05);margin-bottom:13px}
+.section-kicker{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h2{font-size:24px;line-height:1.15;margin:6px 0 18px;letter-spacing:-.03em}
+h3{font-size:18px;margin:22px 0 10px}
+label{display:block;font-size:14px;font-weight:750;margin:0 0 8px}
+input[type="text"],input[type="number"]{
+  width:100%;border:1px solid #d1d5db;border-radius:14px;background:#fff;
+  padding:14px;font-size:17px;outline:none;color:var(--text)
+}
+input:focus{border-color:#7b8494;box-shadow:0 0 0 4px #f1f2f5}
+.time-row{display:grid;grid-template-columns:1fr 22px 1fr;gap:8px;align-items:end}
+.time-box{position:relative}
+.time-input{text-align:center;font-size:25px!important;font-weight:800!important;padding:15px 8px!important}
+.colon{font-size:25px;font-weight:900;text-align:center;padding-bottom:13px}
+.hint{font-size:13px;color:var(--muted);line-height:1.5;margin-top:9px}
+.actions{display:grid;grid-template-columns:auto 1fr;gap:10px;margin-top:20px}
+.actions.one{grid-template-columns:1fr}
+.btn{min-height:50px;border-radius:14px;padding:12px 16px;font-weight:800}
+.btn.primary{background:var(--primary);color:#fff}
+.btn.secondary{background:#eef0f3;color:#111827}
+.btn.danger{background:#fee2e2;color:#991b1b}
+.btn.link{background:transparent;color:#374151;padding-left:0;padding-right:0}
+.error{margin-top:12px;background:var(--danger-bg);color:var(--danger);padding:12px 13px;border-radius:12px;font-size:14px;line-height:1.4}
+.success{margin-top:12px;background:var(--ok-bg);color:var(--ok);padding:13px;border-radius:13px;line-height:1.45}
+.warning{margin-top:12px;background:var(--warn-bg);color:var(--warn);padding:13px;border-radius:13px;line-height:1.45}
+.task-head{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:14px}
+.badge{font-size:12px;font-weight:800;background:var(--soft);padding:6px 9px;border-radius:99px}
+.task-list{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+.task-row{border:1px solid var(--line);border-radius:15px;padding:13px;display:grid;grid-template-columns:78px 1fr;gap:10px}
+.task-time{font-weight:850;line-height:1.25}
+.task-name{font-weight:750}
+.task-meta{font-size:12px;color:var(--muted);margin-top:4px}
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.stat{border:1px solid var(--line);border-radius:14px;padding:13px}
+.stat small{display:block;color:var(--muted);font-size:12px;margin-bottom:5px}
+.stat strong{font-size:17px}
+.choice-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.choice{background:#f8fafc;border:1px solid var(--line);border-radius:15px;padding:14px;text-align:left}
+.choice strong{display:block;font-size:18px}
+.choice span{font-size:12px;color:var(--muted)}
+.divider{height:1px;background:var(--line);margin:18px 0}
+.small{font-size:12px;color:var(--muted)}
+.footer{text-align:center;font-size:12px;color:var(--muted);padding:12px 0 0}
+.hidden{display:none!important}
+@media(max-width:480px){
+  .app{padding-left:13px;padding-right:13px}
+  .hero h1{font-size:29px}
+  .card{padding:17px;border-radius:19px}
+  .stat-grid,.choice-grid{grid-template-columns:1fr 1fr}
+  .actions{grid-template-columns:1fr 1.8fr}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="brand">Daily Planner</div>
+    <div class="version">V4 · Mobile</div>
+  </div>
+  <div class="hero">
+    <h1>Lập lịch theo ngày của bạn.</h1>
+    <p>Từ lúc bắt đầu ngày → công việc → đi ngủ → giờ có thể thức dậy ngày mai.</p>
+    <div class="progress"><div id="progress"></div></div>
+  </div>
+  <main id="app"></main>
+  <div class="footer">Dữ liệu được lưu trên thiết bị bằng trình duyệt.</div>
+</div>
+
+<script>
+"use strict";
+
+/* =========================================================
+   DAILY PLANNER V4
+   Các phần chính:
+   1. State / lưu dữ liệu
+   2. Time utilities
+   3. UI helpers
+   4. Input flow
+   5. Summary / calculations
+   6. Keyboard shortcut
+   ========================================================= */
+
+const APP_VERSION = "V6"; // Mobile time flow update — keeps the existing overall layout.
+const STORAGE_KEY = "dailyPlannerV6";
+
+const state = {
+  screen: "home",
+  startDay: null,
+  taskCount: 0,
+  tasks: [],
+  currentTask: 0,
+  sleepTime: null,
+  sleepHours: null
+};
+
+const app = document.getElementById("app");
+const progress = document.getElementById("progress");
+
+/* ---------- 1. LƯU / TẢI ---------- */
+function save(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+function load(){
+  try{
+    const data = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    if(data && typeof data === "object") Object.assign(state,data);
+  }catch(e){}
+}
+
+/* ---------- 2. XỬ LÝ THỜI GIAN ---------- */
+function pad(n){ return String(n).padStart(2,"0"); }
+function fmt(t){ return `${pad(t.h)}:${pad(t.m)}`; }
+function toMin(t){ return t.h*60+t.m; }
+
+function parseHM(h, m) {
+  h = Number(h);
+  m = Number(m);
+  if (!Number.isInteger(h) || !Number.isInteger(m)) return null;
+  if (h < 0 || h > 24 || m < 0 || m > 59) return null;
+  if (h === 24 && m !== 0) return null;
+  return { h, m };
+}
+
+function formatTime(t) {
+  return `${String(t.h).padStart(2, "0")}:${String(t.m).padStart(2, "0")}`;
+}
+
+// Convert a clock time to its position in the planner's continuous timeline.
+// A time earlier than the planner start belongs to the following calendar day.
+function timelineMin(t, baseStart) {
+  let x = toMin(t);
+  const base = toMin(baseStart);
+  if (x < base) x += 1440;
+  return x;
+}
+
+function dayDuration(start, sleep) {
+  const s = toMin(start);
+  let e = toMin(sleep);
+  if (e < s) e += 1440;
+  return e - s;
+}
+
+function taskDuration(start, end) {
+  let s = toMin(start);
+  let e = toMin(end);
+  if (e < s) e += 1440;
+  return e - s;
+}
+
+function addMinutes(t, mins) {
+  let total = (toMin(t) + mins) % 1440;
+  if (total < 0) total += 1440;
+  return { h: Math.floor(total / 60), m: total % 60 };
+}
+
+function timeFields(prefix, value){
+  const h = value ? String(value.h).padStart(2,"0") : "";
+  const m = value ? String(value.m).padStart(2,"0") : "";
+  return `
+    <div class="time-row">
+      <div class="time-box">
+        <label for="${prefix}Hour">Giờ</label>
+        <input class="time-input" id="${prefix}Hour" type="number"
+               min="0" max="24" inputmode="numeric" placeholder="07" value="${h}">
+      </div>
+      <div class="colon">:</div>
+      <div class="time-box">
+        <label for="${prefix}Minute">Phút</label>
+        <input class="time-input" id="${prefix}Minute" type="number"
+               min="0" max="59" inputmode="numeric" placeholder="30" value="${m}">
+      </div>
+    </div>`;
+}
+
+function readTime(prefix){
+  return parseHM(
+    document.getElementById(prefix+"Hour").value,
+    document.getElementById(prefix+"Minute").value
+  );
+}
+
+/* ---------- 3. UI HELPERS ---------- */
+function esc(s){
+  return String(s).replace(/[&<>"']/g,c=>({
+    "&":"&amp;","<":"&lt;",">":"&gt;",
+    '"':"&quot;","'":"&#039;"
+  }[c]));
+}
+
+function error(msg){
+  const old = document.querySelector(".error");
+  if(old) old.remove();
+  const el = document.createElement("div");
+  el.className = "error";
+  el.textContent = msg;
+  app.querySelector(".card")?.appendChild(el);
+}
+
+function shell(kicker,title,body,actions=""){
+  app.innerHTML = `
+    <section class="card">
+      <div class="section-kicker">${kicker}</div>
+      <h2>${title}</h2>
+      ${body}
+      ${actions}
+    </section>`;
+  updateProgress();
+}
+
+function buttons(backText="← Quay lại",nextText="Tiếp tục"){
+  return `
+    <div class="actions">
+      <button class="btn secondary" id="backBtn">${backText}</button>
+      <button class="btn primary" id="nextBtn">${nextText}</button>
+    </div>`;
+}
+
+function bindBack(){
+  const b = document.getElementById("backBtn");
+  if(b) b.onclick = back;
+}
+
+function updateProgress(){
+  const screens = 3 + state.taskCount*3 + 2;
+  let current = 1;
+  if(state.screen === "home") current = 1;
+  else if(state.screen === "count") current = 2;
+  else if(state.screen === "task") current = 3 + state.currentTask*3;
+  else if(state.screen === "sleepTime") current = 3 + state.taskCount*3;
+  else if(state.screen === "sleepHours") current = 4 + state.taskCount*3;
+  else current = screens;
+  progress.style.width = Math.min(100,Math.max(8,(current/screens)*100))+"%";
+}
+
+/* ---------- 4. FLOW ---------- */
+function render(){
+  if(state.screen==="home") return renderHome();
+  if(state.screen==="count") return renderCount();
+  if(state.screen==="task") return renderTask();
+  if(state.screen==="sleepTime") return renderSleepTime();
+  if(state.screen==="sleepHours") return renderSleepHours();
+  if(state.screen==="summary") return renderSummary();
+}
+
+function renderHome(){
+  shell("BƯỚC 1","Bắt đầu ngày",`
+    <label>Hôm nay của bạn bắt đầu lúc mấy giờ?</label>
+    ${timeFields("start",state.startDay)}
+    <div class="hint">Trên điện thoại chỉ cần nhập <b>Giờ</b> và <b>Phút</b>. Ví dụ <b>07 : 30</b>.</div>
+  `,`
+    <div class="actions one">
+      <button class="btn primary" id="nextBtn">Tiếp tục</button>
+    </div>`);
+  document.getElementById("nextBtn").onclick=()=>{
+    const t=readTime("start");
+    if(!t) return error("Giờ không hợp lệ. Hãy nhập Giờ 0–24 và Phút 0–59.");
+    state.startDay=t;
+    state.screen="count";
+    save(); render();
+  };
+}
+
+function renderCount(){
+  shell("BƯỚC 2","Bạn có bao nhiêu công việc?",`
+    <label>Số lượng công việc trong ngày</label>
+    <input id="count" type="number" min="1" max="100" inputmode="numeric"
+           placeholder="Ví dụ: 5" value="${state.taskCount||""}">
+    <div class="hint">Sau bước này, app sẽ hỏi lần lượt tên → giờ bắt đầu → giờ kết thúc.</div>
+  `,buttons());
+  bindBack();
+  document.getElementById("nextBtn").onclick=()=>{
+    const n=Number(document.getElementById("count").value);
+    if(!Number.isInteger(n)||n<1||n>100) return error("Số công việc phải từ 1 đến 100.");
+    state.taskCount=n;
+    state.tasks=Array.from({length:n},(_,i)=>state.tasks[i]||{name:"",start:null,end:null});
+    state.currentTask=0;
+    state.screen="task";
+    save(); render();
+  };
+}
+
+function renderTask(){
+  const i=state.currentTask;
+  const t=state.tasks[i]||{name:"",start:null,end:null};
+  const phase = state.taskPhase || "name";
+
+  if(phase==="name"){
+    shell(`CÔNG VIỆC ${i+1}/${state.taskCount}`,"Tên công việc",`
+      <div class="task-head">
+        <span class="badge">Bước 1/3</span>
+      </div>
+      <label>Tên công việc</label>
+      <input id="taskName" type="text" placeholder="Ví dụ: Đi học, làm việc, tập gym..." value="${esc(t.name||"")}">
+      <div class="hint">Đặt tên ngắn để lịch tổng kết dễ nhìn.</div>
+    `,buttons());
+  }else if(phase==="start"){
+    shell(`CÔNG VIỆC ${i+1}/${state.taskCount}`,"Giờ bắt đầu",`
+      <div class="task-head"><span class="badge">Bước 2/3</span><span>${esc(t.name)}</span></div>
+      ${timeFields("taskStart",t.start)}
+      <div class="hint">Ví dụ <b>08 : 30</b>.</div>
+    `,buttons());
+  }else{
+    shell(`CÔNG VIỆC ${i+1}/${state.taskCount}`,"Giờ kết thúc",`
+      <div class="task-head"><span class="badge">Bước 3/3</span><span>${esc(t.name)}</span></div>
+      ${timeFields("taskEnd",t.end)}
+      <div class="hint">Nếu kết thúc đúng nửa đêm, nhập <b>24 : 00</b>.</div>
+    `,buttons("← Quay lại",i===state.taskCount-1?"Hoàn tất công việc":"Công việc tiếp theo"));
+  }
+
+  bindBack();
+  document.getElementById("nextBtn").onclick=()=>{
+    if(phase==="name"){
+      const name=document.getElementById("taskName").value.trim();
+      if(!name) return error("Tên công việc không được để trống.");
+      t.name=name; state.tasks[i]=t;
+      state.taskPhase="start"; save(); render();
+    }else if(phase==="start"){
+      const time=readTime("taskStart");
+      if(!time) return error("Giờ bắt đầu không hợp lệ.");
+      t.start=time; state.tasks[i]=t;
+      state.taskPhase="end"; save(); render();
+    }else{
+      const time=readTime("taskEnd");
+      if(!time) return error("Giờ kết thúc không hợp lệ.");
+      if(!t.start) return error("Chưa có giờ bắt đầu.");
+      if(toMin(time)<=toMin(t.start) && time.h!==24)
+        return error("Giờ kết thúc phải sau giờ bắt đầu. Nếu kết thúc đúng nửa đêm, nhập 24 : 00.");
+      t.end=time; state.tasks[i]=t;
+      if(i < state.taskCount-1){
+        state.currentTask++;
+        state.taskPhase="name";
+        save(); render();
+      }else{
+        state.screen="sleepTime";
+        state.taskPhase="name";
+        save(); render();
+      }
+    }
+  };
+}
+
+function renderSleepTime(){
+  shell("ĐI NGỦ · 1/2","Giờ đi ngủ",`
+    <label>Bạn dự định đi ngủ lúc mấy giờ?</label>
+    ${timeFields("sleep",state.sleepTime)}
+    <div class="hint">Đây là mốc kết thúc “ngày planner”. Nếu bắt đầu ngày 08:00 và ngủ 23:30 thì ngày planner dài 15 giờ 30 phút.</div>
+  `,buttons());
+  bindBack();
+  document.getElementById("nextBtn").onclick=()=>{
+    const t=readTime("sleep");
+    if(!t) return error("Giờ đi ngủ không hợp lệ.");
+    state.sleepTime=t;
+    state.screen="sleepHours";
+    save(); render();
+  };
+}
+
+function renderSleepHours(){
+  shell("ĐI NGỦ · 2/2","Bạn muốn ngủ bao nhiêu giờ?",`
+    <label>Số giờ ngủ đăng ký</label>
+    <input id="sleepHours" type="number" min="1" max="24" step="1"
+           inputmode="numeric" placeholder="Ví dụ: 7" value="${state.sleepHours??""}">
+    <div class="hint">App dùng giờ đi ngủ + số giờ ngủ để tính giờ có thể thức dậy ngày hôm sau.</div>
+  `,buttons("← Quay lại","Xem tổng kết"));
+  bindBack();
+  document.getElementById("nextBtn").onclick=()=>{
+    const n=Number(document.getElementById("sleepHours").value);
+    if(!Number.isInteger(n)||n<1||n>24) return error("Số giờ ngủ phải từ 1 đến 24.");
+    state.sleepHours=n;
+    state.screen="summary";
+    save(); render();
+  };
+}
+
+/* ---------- 5. TỔNG KẾT ---------- */
+function timelineTasks(){
+  return [...state.tasks].sort(
+    (a,b)=>timelineMin(a.start,state.startDay)-timelineMin(b.start,state.startDay)
+  );
+}
+
+function taskOutsideDay(t){
+  const dayStart = toMin(state.startDay);
+  const dayEnd = dayStart + dayDuration(state.startDay, state.sleepTime);
+  let a = timelineMin(t.start, state.startDay);
+  let b = timelineMin(t.end, state.startDay);
+  if (b <= a) b += 1440;
+  return a < dayStart || b > dayEnd;
+}
+
+function renderSummary(){
+  const sorted=timelineTasks();
+  const totalDay=dayDuration(state.startDay,state.sleepTime);
+  const totalWork=sorted.reduce((sum,t)=>sum+taskDuration(t.start,t.end),0);
+  const remaining=totalDay-totalWork;
+  const wake=addMinutes(state.sleepTime,state.sleepHours*60);
+
+  const overlaps=[];
+  for(let i=0;i<sorted.length-1;i++){
+    const aEnd = timelineMin(sorted[i].end, state.startDay) +
+      (toMin(sorted[i].end) <= toMin(sorted[i].start) ? 1440 : 0);
+    const bStart = timelineMin(sorted[i+1].start, state.startDay);
+    if(bStart < aEnd)
+      overlaps.push(`${sorted[i].name} ↔ ${sorted[i+1].name}`);
+  }
+
+  const outside=sorted.filter(taskOutsideDay).map(t=>t.name);
+
+  shell("TỔNG KẾT","Lịch của bạn",`
+    <div class="stat-grid">
+      <div class="stat"><small>Bắt đầu ngày</small><strong>${fmt(state.startDay)}</strong></div>
+      <div class="stat"><small>Đi ngủ</small><strong>${fmt(state.sleepTime)}</strong></div>
+      <div class="stat"><small>Tổng thời gian ngày</small><strong>${Math.floor(totalDay/60)}g ${totalDay%60}p</strong></div>
+      <div class="stat"><small>Tổng thời gian làm việc</small><strong>${Math.floor(totalWork/60)}g ${totalWork%60}p</strong></div>
+      <div class="stat"><small>Chưa lập lịch</small><strong>${remaining>=0?Math.floor(remaining/60)+"g "+remaining%60+"p":"Vượt "+Math.floor(-remaining/60)+"g "+(-remaining%60)+"p"}</strong></div>
+      <div class="stat"><small>Giờ dậy ngày mai</small><strong>${fmt(wake)}</strong></div>
+    </div>
+
+    <h3>Lịch theo thứ tự thời gian</h3>
+    <div class="task-list">
+      ${sorted.map((t,i)=>{
+        const d=taskDuration(t.start,t.end);
+        return `<div class="task-row">
+          <div class="task-time">${fmt(t.start)}<br>↓<br>${fmt(t.end)}</div>
+          <div><div class="task-name">${i+1}. ${esc(t.name)}</div>
+          <div class="task-meta">${Math.floor(d/60)} giờ ${d%60} phút</div></div>
+        </div>`;
+      }).join("")}
+    </div>
+
+    ${overlaps.length?`<div class="warning">⚠️ Công việc bị trùng: ${overlaps.map(esc).join(", ")}</div>`:""}
+    ${outside.length?`<div class="warning">⚠️ Công việc nằm ngoài khoảng bắt đầu ngày → đi ngủ: ${outside.map(esc).join(", ")}</div>`:""}
+    ${remaining<0?`<div class="error">Tổng thời gian công việc đang vượt quá thời gian của ngày planner.</div>`:""}
+
+    <div class="success">
+      😴 Bạn ngủ <b>${state.sleepHours} giờ</b> từ <b>${fmt(state.sleepTime)}</b>
+      → có thể thức dậy lúc <b>${fmt(wake)}</b> ngày hôm sau.
+    </div>
+
+    <div class="actions">
+      <button class="btn secondary" id="editBtn">← Chỉnh sửa</button>
+      <button class="btn primary" id="newBtn">Tạo lịch mới</button>
+    </div>
+  `);
+
+  document.getElementById("editBtn").onclick=()=>{
+    state.screen="sleepHours";
+    render();
+  };
+
+  document.getElementById("newBtn").onclick=()=>{
+    Object.assign(state,{
+      screen:"home",startDay:null,taskCount:0,tasks:[],
+      currentTask:0,taskPhase:"name",sleepTime:null,sleepHours:null
+    });
+    save(); render();
+  };
+}
+
+/* ---------- 6. BACK / PHÍM R ---------- */
+function back(){
+  if(state.screen==="count"){
+    state.screen="home";
+  }else if(state.screen==="task"){
+    if(state.taskPhase==="start"){
+      state.taskPhase="name";
+    }else if(state.taskPhase==="end"){
+      state.taskPhase="start";
+    }else if(state.currentTask>0){
+      state.currentTask--;
+      state.taskPhase="end";
+    }else{
+      state.screen="count";
+    }
+  }else if(state.screen==="sleepTime"){
+    state.screen="task";
+    state.currentTask=state.taskCount-1;
+    state.taskPhase="end";
+  }else if(state.screen==="sleepHours"){
+    state.screen="sleepTime";
+  }else if(state.screen==="summary"){
+    state.screen="sleepHours";
+  }
+  save(); render();
+}
+
+document.addEventListener("keydown",e=>{
+  if(e.key.toLowerCase()!=="r") return;
+  const tag=document.activeElement?.tagName;
+  if(tag==="INPUT" || tag==="TEXTAREA") return;
+  if(state.screen!=="home") back();
+});
+
+load();
+if(!state.taskPhase) state.taskPhase="name";
+render();
+</script>
+</body>
+</html>
