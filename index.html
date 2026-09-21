@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Daily Planner</title>
+<style>
+:root{
+  --bg:#f5f7fb; --card:#fff; --text:#172033; --muted:#6b7280;
+  --line:#e5e7eb; --primary:#111827; --soft:#eef2ff;
+  --danger:#b91c1c; --danger-bg:#fef2f2; --ok:#166534; --ok-bg:#f0fdf4;
+  --warning:#92400e; --warning-bg:#fffbeb;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.app{max-width:760px;margin:auto;padding:20px 16px 48px}
+header{padding:8px 0 18px}
+h1{margin:0 0 5px;font-size:28px}
+.subtitle{color:var(--muted);font-size:14px}
+.progress{height:7px;background:#e5e7eb;border-radius:99px;overflow:hidden;margin:18px 0 20px}
+.progress>div{height:100%;background:var(--primary);transition:.25s}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:0 5px 20px rgba(17,24,39,.05);margin-bottom:14px}
+.step-label{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700}
+h2{font-size:21px;margin:7px 0 18px}
+label{display:block;font-weight:650;font-size:14px;margin-bottom:8px}
+input{width:100%;padding:13px 14px;border:1px solid #d1d5db;border-radius:12px;font-size:16px;outline:none;background:#fff}
+input:focus{border-color:#6b7280;box-shadow:0 0 0 3px #f3f4f6}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.actions{display:flex;gap:10px;margin-top:18px}
+button{border:0;border-radius:12px;padding:12px 16px;font-size:15px;font-weight:700;cursor:pointer}
+.primary{background:var(--primary);color:#fff;flex:1}
+.secondary{background:#eef0f3;color:#111827}
+.danger{background:#fee2e2;color:#991b1b}
+button:disabled{opacity:.45;cursor:not-allowed}
+.hint{font-size:13px;color:var(--muted);margin-top:9px;line-height:1.45}
+.error{margin-top:12px;background:var(--danger-bg);color:var(--danger);padding:11px 12px;border-radius:10px;font-size:14px}
+.success{background:var(--ok-bg);color:var(--ok);padding:12px;border-radius:12px}
+.warning{background:var(--warning-bg);color:var(--warning);padding:12px;border-radius:12px}
+.task-title{font-size:16px;font-weight:800;margin-bottom:14px}
+.task-nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.badge{background:var(--soft);padding:5px 9px;border-radius:99px;font-size:12px;font-weight:700}
+.summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{border:1px solid var(--line);border-radius:14px;padding:13px}
+.stat small{display:block;color:var(--muted);margin-bottom:4px}
+.stat strong{font-size:17px}
+.timeline{display:flex;flex-direction:column;gap:9px;margin-top:12px}
+.task-item{display:grid;grid-template-columns:82px 1fr;gap:10px;padding:12px;border:1px solid var(--line);border-radius:12px}
+.task-time{font-weight:800}
+.task-name{font-weight:650}
+.task-duration{color:var(--muted);font-size:12px;margin-top:3px}
+.back-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.back-btn{background:transparent;padding:6px 0;color:#374151}
+kbd{background:#f3f4f6;border:1px solid #d1d5db;border-bottom-width:2px;border-radius:5px;padding:1px 5px;font-size:11px}
+.hidden{display:none!important}
+.footer-note{text-align:center;color:var(--muted);font-size:12px;margin-top:20px}
+@media(max-width:520px){
+  .app{padding:14px 12px 35px}
+  .card{padding:16px;border-radius:16px}
+  h1{font-size:24px}
+  .row,.summary-grid{grid-template-columns:1fr}
+  .actions{position:sticky;bottom:8px;background:rgba(245,247,251,.92);padding-top:8px}
+  .task-item{grid-template-columns:74px 1fr}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Daily Planner</h1>
+    <div class="subtitle">Lập lịch theo “ngày của bạn”: từ lúc bắt đầu ngày đến lúc đi ngủ.</div>
+    <div class="progress"><div id="progress"></div></div>
+  </header>
+
+  <main id="app"></main>
+  <div class="footer-note">Dữ liệu được lưu trên thiết bị bằng trình duyệt (localStorage).</div>
+</div>
+
+<script>
+const state = {
+  step: 0,
+  startDay: null,
+  taskCount: 0,
+  tasks: [],
+  currentTask: 0,
+  sleepTime: null,
+  sleepHours: null
+};
+
+const app = document.getElementById('app');
+const progress = document.getElementById('progress');
+
+function esc(s){
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+}
+function pad(n){ return String(n).padStart(2,'0'); }
+function fmt(t){ return `${pad(t.h)}:${pad(t.m)}`; }
+function toMin(t){ return t.h*60+t.m; }
+function parseTime(v){
+  const p = v.trim().split(/\s+/);
+  if(p.length !== 2 || !/^\d+$/.test(p[0]) || !/^\d+$/.test(p[1])) return null;
+  let h=Number(p[0]), m=Number(p[1]);
+  if(h===24 && m===0) h=0;
+  if(h<0 || h>23 || m<0 || m>59) return null;
+  return {h,m};
+}
+function duration(a,b){
+  return toMin(b)-toMin(a);
+}
+function dayDuration(start,sleep){
+  let d=toMin(sleep)-toMin(start);
+  if(d<0) d+=1440;
+  return d;
+}
+function addMinutes(t, mins){
+  return {h:Math.floor(((toMin(t)+mins)%1440+1440)%1440/60),m:((toMin(t)+mins)%1440+1440)%1440%60};
+}
+function save(){
+  localStorage.setItem('dailyPlannerV5', JSON.stringify(state));
+}
+function load(){
+  try{
+    const x=JSON.parse(localStorage.getItem('dailyPlannerV5'));
+    if(x && typeof x==='object') Object.assign(state,x);
+  }catch(e){}
+}
+function setProgress(){
+  let total=2 + state.taskCount*3 + 2;
+  let current=state.step;
+  progress.style.width=Math.min(100, Math.max(5, ((current+1)/Math.max(1,total))*100))+'%';
+}
+function shell(label,title,body,buttons){
+  app.innerHTML=`
+    <section class="card">
+      <div class="step-label">${label}</div>
+      <h2>${title}</h2>
+      ${body}
+      ${buttons || ''}
+    </section>`;
+  setProgress();
+}
+function error(msg){
+  const old=document.querySelector('.error');
+  if(old) old.remove();
+  const d=document.createElement('div');
+  d.className='error'; d.textContent=msg;
+  app.querySelector('.card').appendChild(d);
+}
+function navButtons(back=true, next='Tiếp tục'){
+  return `<div class="actions">
+    ${back ? `<button class="secondary" id="backBtn">← Quay lại <kbd>r</kbd></button>` : ''}
+    <button class="primary" id="nextBtn">${next}</button>
+  </div>`;
+}
+function goBack(){
+  if(state.step===0){ return; }
+  state.step--;
+  render();
+}
+function bindBack(){
+  const b=document.getElementById('backBtn');
+  if(b) b.onclick=goBack;
+}
+function render(){
+  setProgress();
+  if(state.step===0) return renderStartDay();
+  if(state.step===1) return renderTaskCount();
+  const taskEndStep=2+state.taskCount*3;
+  if(state.step < taskEndStep){
+    const offset=state.step-2;
+    state.currentTask=Math.floor(offset/3);
+    const sub=offset%3;
+    return renderTask(state.currentTask,sub);
+  }
+  if(state.step===taskEndStep) return renderSleepTime();
+  if(state.step===taskEndStep+1) return renderSleepHours();
+  return renderSummary();
+}
+
+function renderStartDay(){
+  shell('BƯỚC 1','Bắt đầu ngày',`
+    <label>Hôm nay của bạn bắt đầu lúc mấy giờ?</label>
+    <input id="timeInput" inputmode="numeric" placeholder="Ví dụ: 8 00" value="${state.startDay?fmt(state.startDay).replace(':',' '):''}">
+    <div class="hint">Nhập chung giờ và phút, ví dụ <b>7 30</b>. Gõ <b>r</b> chỉ dùng để quay lại ở các bước sau.</div>
+  `,navButtons(false));
+  document.getElementById('nextBtn').onclick=()=>{
+    const t=parseTime(document.getElementById('timeInput').value);
+    if(!t) return error('Giờ không hợp lệ. Hãy nhập theo dạng: 7 30');
+    state.startDay=t; state.step=1; save(); render();
+  };
+}
+function renderTaskCount(){
+  shell('BƯỚC 2','Số lượng công việc',`
+    <label>Một ngày bạn có bao nhiêu công việc?</label>
+    <input id="countInput" type="number" min="1" max="100" inputmode="numeric" value="${state.taskCount||''}">
+    <div class="hint">Tối đa 100 công việc.</div>
+  `,navButtons(true));
+  bindBack();
+  document.getElementById('nextBtn').onclick=()=>{
+    const n=Number(document.getElementById('countInput').value);
+    if(!Number.isInteger(n)||n<1||n>100) return error('Số công việc phải từ 1 đến 100.');
+    state.taskCount=n;
+    state.tasks=Array.from({length:n},(_,i)=>state.tasks[i]||{name:'',start:null,end:null});
+    state.step=2; save(); render();
+  };
+}
+function renderTask(i,sub){
+  const t=state.tasks[i]||{name:'',start:null,end:null};
+  const title=sub===0?'Tên công việc':sub===1?'Thời gian bắt đầu':'Thời gian kết thúc';
+  let body='';
+  if(sub===0){
+    body=`<div class="task-nav"><span class="badge">Công việc ${i+1}/${state.taskCount}</span></div>
+      <label>Tên công việc</label>
+      <input id="taskInput" placeholder="Ví dụ: Đi học, làm việc, tập gym..." value="${esc(t.name||'')}">
+      <div class="hint">Bạn có thể dùng nút “Quay lại” hoặc phím <b>r</b>.</div>`;
+  } else {
+    const current=sub===1?t.start:t.end;
+    body=`<div class="task-nav"><span class="badge">Công việc ${i+1}/${state.taskCount}</span><span>${esc(t.name||'')}</span></div>
+      <label>${title}</label>
+      <input id="timeInput" inputmode="numeric" placeholder="Ví dụ: 8 30" value="${current?fmt(current).replace(':',' '):''}">
+      <div class="hint">Nhập chung giờ + phút. Ví dụ: <b>8 30</b>, <b>13 00</b>, <b>23 55</b>.</div>`;
+  }
+  shell(`CÔNG VIỆC ${i+1}/${state.taskCount}`,title,body,navButtons(true,sub===2&&i===state.taskCount-1?'Xong công việc':'Tiếp tục'));
+  bindBack();
+  document.getElementById('nextBtn').onclick=()=>{
+    if(sub===0){
+      const v=document.getElementById('taskInput').value.trim();
+      if(!v) return error('Tên công việc không được để trống.');
+      t.name=v; state.tasks[i]=t; state.step++; save(); render();
+    }else{
+      const v=parseTime(document.getElementById('timeInput').value);
+      if(!v) return error('Thời gian không hợp lệ. Hãy nhập ví dụ: 8 30');
+      if(sub===1){ t.start=v; state.tasks[i]=t; state.step++; save(); render(); }
+      else{
+        if(!t.start) return error('Chưa có giờ bắt đầu.');
+        if(duration(t.start,v)<=0) return error('Giờ kết thúc phải sau giờ bắt đầu. Công việc qua 00:00 chưa được hỗ trợ ở phiên bản này.');
+        t.end=v; state.tasks[i]=t; state.step++; save(); render();
+      }
+    }
+  };
+}
+function renderSleepTime(){
+  shell('ĐI NGỦ · BƯỚC 1/2','Giờ đi ngủ',`
+    <label>Bạn dự định đi ngủ lúc mấy giờ?</label>
+    <input id="timeInput" inputmode="numeric" placeholder="Ví dụ: 23 30" value="${state.sleepTime?fmt(state.sleepTime).replace(':',' '):''}">
+    <div class="hint">Đây là mốc kết thúc “ngày planner”. Nó không bị giới hạn bởi giờ bắt đầu ngày.</div>
+  `,navButtons(true));
+  bindBack();
+  document.getElementById('nextBtn').onclick=()=>{
+    const t=parseTime(document.getElementById('timeInput').value);
+    if(!t) return error('Giờ không hợp lệ. Hãy nhập theo dạng: 23 30');
+    state.sleepTime=t; state.step++; save(); render();
+  };
+}
+function renderSleepHours(){
+  shell('ĐI NGỦ · BƯỚC 2/2','Thời gian ngủ',`
+    <label>Bạn muốn ngủ bao nhiêu giờ?</label>
+    <input id="hoursInput" type="number" min="1" max="24" step="1" inputmode="numeric" placeholder="Ví dụ: 7" value="${state.sleepHours??''}">
+    <div class="hint">Số giờ này được dùng để tính giờ có thể thức dậy ngày hôm sau.</div>
+  `,navButtons(true,'Xem lịch tổng kết'));
+  bindBack();
+  document.getElementById('nextBtn').onclick=()=>{
+    const n=Number(document.getElementById('hoursInput').value);
+    if(!Number.isInteger(n)||n<1||n>24) return error('Số giờ ngủ phải từ 1 đến 24.');
+    state.sleepHours=n; state.step++; save(); render();
+  };
+}
+function renderSummary(){
+  const sorted=[...state.tasks].sort((a,b)=>toMin(a.start)-toMin(b.start));
+  const dayMin=dayDuration(state.startDay,state.sleepTime);
+  const workMin=sorted.reduce((s,t)=>s+duration(t.start,t.end),0);
+  const free=dayMin-workMin;
+  const wake=addMinutes(state.sleepTime,state.sleepHours*60);
+  let overlap=false, notes=[];
+  for(let i=0;i<sorted.length-1;i++){
+    if(toMin(sorted[i+1].start)<toMin(sorted[i].end)){
+      overlap=true;
+      notes.push(`${sorted[i].name} ↔ ${sorted[i+1].name}`);
+    }
+  }
+  let outside=[];
+  for(const t of sorted){
+    // For a planner day crossing midnight, compare on a 0..2880 timeline.
+    const start=toMin(state.startDay), end=(toMin(state.sleepTime)>=start?toMin(state.sleepTime):toMin(state.sleepTime)+1440);
+    let a=toMin(t.start), b=toMin(t.end);
+    if(b<=a) b+=1440;
+    if(a<start) { a+=1440; b+=1440; }
+    if(a<start || b>end) outside.push(t.name);
+  }
+  shell('HOÀN TẤT','Lịch của bạn',`
+    <div class="summary-grid">
+      <div class="stat"><small>Bắt đầu ngày</small><strong>${fmt(state.startDay)}</strong></div>
+      <div class="stat"><small>Đi ngủ</small><strong>${fmt(state.sleepTime)}</strong></div>
+      <div class="stat"><small>Tổng thời gian ngày</small><strong>${Math.floor(dayMin/60)}g ${dayMin%60}p</strong></div>
+      <div class="stat"><small>Tổng thời gian công việc</small><strong>${Math.floor(workMin/60)}g ${workMin%60}p</strong></div>
+      <div class="stat"><small>Chưa lập lịch</small><strong>${free>=0?Math.floor(free/60)+'g '+free%60+'p':'Vượt '+Math.floor(-free/60)+'g '+(-free%60)+'p'}</strong></div>
+      <div class="stat"><small>Giờ dậy ngày mai</small><strong>${fmt(wake)}</strong></div>
+    </div>
+    <h3 style="margin:22px 0 8px">Lịch theo thứ tự thời gian</h3>
+    <div class="timeline">
+      ${sorted.map((t,idx)=>`<div class="task-item">
+        <div class="task-time">${fmt(t.start)}<br>↓<br>${fmt(t.end)}</div>
+        <div><div class="task-name">${idx+1}. ${esc(t.name)}</div><div class="task-duration">${Math.floor(duration(t.start,t.end)/60)} giờ ${duration(t.start,t.end)%60} phút</div></div>
+      </div>`).join('')}
+    </div>
+    ${overlap?`<div class="warning" style="margin-top:14px">⚠️ Có công việc bị trùng: ${notes.map(esc).join(', ')}</div>`:''}
+    ${outside.length?`<div class="warning" style="margin-top:10px">⚠️ Công việc nằm ngoài khoảng bắt đầu ngày → đi ngủ: ${outside.map(esc).join(', ')}</div>`:''}
+    ${free<0?`<div class="error">Tổng thời gian công việc đang vượt quá thời gian của ngày planner.</div>`:''}
+    <div class="success" style="margin-top:14px">😴 Ngủ ${state.sleepHours} giờ từ ${fmt(state.sleepTime)} → có thể dậy lúc <b>${fmt(wake)}</b> ngày hôm sau.</div>
+    <div class="actions">
+      <button class="secondary" id="editBtn">← Chỉnh sửa</button>
+      <button class="primary" id="newBtn">Tạo lịch mới</button>
+    </div>
+  `);
+  document.getElementById('editBtn').onclick=()=>{state.step=Math.max(0,state.step-1);render();};
+  document.getElementById('newBtn').onclick=()=>{
+    Object.assign(state,{step:0,startDay:null,taskCount:0,tasks:[],currentTask:0,sleepTime:null,sleepHours:null});
+    save(); render();
+  };
+}
+
+// Keyboard shortcut: r = back, trừ khi đang gõ vào input/textarea.
+document.addEventListener('keydown', e=>{
+  if(e.key.toLowerCase()!=='r') return;
+  const tag=document.activeElement?.tagName;
+  if(tag==='INPUT'||tag==='TEXTAREA') return;
+  if(state.step>0) goBack();
+});
+
+load();
+render();
+</script>
+</body>
+</html>
